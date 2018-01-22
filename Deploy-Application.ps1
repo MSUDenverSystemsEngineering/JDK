@@ -29,7 +29,7 @@
 	60000 - 68999: Reserved for built-in exit codes in Deploy-Application.ps1, Deploy-Application.exe, and AppDeployToolkitMain.ps1
 	69000 - 69999: Recommended for user customized exit codes in Deploy-Application.ps1
 	70000 - 79999: Recommended for user customized exit codes in AppDeployToolkitExtensions.ps1
-.LINK 
+.LINK
 	http://psappdeploytoolkit.com
 #>
 [CmdletBinding()]
@@ -45,47 +45,51 @@ Param (
 	[Parameter(Mandatory=$false)]
 	[switch]$TerminalServerMode = $false,
 	[Parameter(Mandatory=$false)]
-	[switch]$DisableLogging = $false
+	[switch]$DisableLogging = $false,
+	[Parameter(Mandatory=$false)]
+	[switch]$x86 = $false,
+	[Parameter(Mandatory=$false)]
+	[switch]$x64 = $false
 )
 
 Try {
 	## Set the script execution policy for this process
-	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch {Write-Error -Message "Unable to set the PowerShell Execution Policy to Bypass for this process."}
-	
+	Try { Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' } Catch { Write-Error -Message "Unable to set the PowerShell Execution Policy to Bypass for this process." }
+
 	##*===============================================
 	##* VARIABLE DECLARATION
 	##*===============================================
 	## Variables: Application
 	[string]$appVendor = 'Oracle'
-	[string]$appName = 'JDK'
-	[string]$appVersion = '8u152'
-	[string]$appArch = 'x64'
+	[string]$appName = 'Java SE Development Kit'
+	[string]$appVersion = '8 Update 162'
+	[string]$appArch = ''
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = '05/17/2017'
-	[string]$appScriptAuthor = 'Quan Tran'
+	[string]$appScriptDate = '01/22/2018'
+	[string]$appScriptAuthor = 'Quan Tran/Jordan Hamilton'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
 	[string]$installTitle = ''
-	
+
 	##* Do not modify section below
 	#region DoNotModify
-	
+
 	## Variables: Exit Code
 	[int32]$mainExitCode = 0
-	
+
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
 	[version]$deployAppScriptVersion = [version]'3.6.9'
 	[string]$deployAppScriptDate = '02/12/2017'
 	[hashtable]$deployAppScriptParameters = $psBoundParameters
-	
+
 	## Variables: Environment
 	If (Test-Path -LiteralPath 'variable:HostInvocation') { $InvocationInfo = $HostInvocation } Else { $InvocationInfo = $MyInvocation }
 	[string]$scriptDirectory = Split-Path -Path $InvocationInfo.MyCommand.Definition -Parent
-	
+
 	## Dot source the required App Deploy Toolkit Functions
 	Try {
 		[string]$moduleAppDeployToolkitMain = "$scriptDirectory\AppDeployToolkit\AppDeployToolkitMain.ps1"
@@ -98,51 +102,91 @@ Try {
 		## Exit the script, returning the exit code to SCCM
 		If (Test-Path -LiteralPath 'variable:HostInvocation') { $script:ExitCode = $mainExitCode; Exit } Else { Exit $mainExitCode }
 	}
-	
+
 	#endregion
 	##* Do not modify section above
 	##*===============================================
 	##* END VARIABLE DECLARATION
 	##*===============================================
-		
+
 	If ($deploymentType -ine 'Uninstall') {
 		##*===============================================
 		##* PRE-INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
-		
-		## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
-		Show-InstallationWelcome -CheckDiskSpace -PersistPrompt
-		
+
+		## Show Welcome Message, close Java apps, verify there is enough disk space to complete the install, and persist the prompt
+		Show-InstallationWelcome -CloseApps 'eclipse,firefox,iexplore,netbeans,netbeans64,sqldeveloper' -CheckDiskSpace -PersistPrompt
+
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
-		
+
 		## <Perform Pre-Installation tasks here>
-		
-		
+		If ($x86 -and $x64) {
+			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
+		} ElseIf ($x64) {
+			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx')  -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+		} Else {
+			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+		}
+
 		##*===============================================
-		##* INSTALLATION 
+		##* INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Installation'
-		
+
 		## Handle Zero-Config MSI Installations
 		If ($useDefaultMsi) {
 			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Install'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
 			Execute-MSI @ExecuteDefaultMSISplat; If ($defaultMspFiles) { $defaultMspFiles | ForEach-Object { Execute-MSI -Action 'Patch' -Path $_ } }
 		}
-		
+
 		## <Perform Installation tasks here>
-		$exitCode = Execute-Process -Path "$dirFiles\jdk-8u152-windows-x64.exe" -Parameters "/s" -WindowStyle "Hidden" -PassThru
-        If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-		
+		If ($x86 -and $x64) {
+			## Install 32-bit and 64-bit versions if specified
+			$exitCode = Execute-Process -Path "jdk-8u162-windows-i586.exe" -Parameters "/s" -WindowStyle "Hidden" -PassThru -WaitForMsiExec
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+			$exitCode = Execute-Process -Path "jdk-8u162-windows-x64.exe" -Parameters "/s" -WindowStyle "Hidden" -PassThru -WaitForMsiExec
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		} ElseIf ($x64) {
+			## Only install a 64-bit version if specified
+			$exitCode = Execute-Process -Path "jdk-8u162-windows-x64.exe" -Parameters "/s" -WindowStyle "Hidden" -PassThru -WaitForMsiExec
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		} Else {
+			## Only install a 32-bit version if specified (or if no version is specified)
+			$exitCode = Execute-Process -Path "jdk-8u162-windows-i586.exe" -Parameters "/s" -WindowStyle "Hidden" -PassThru -WaitForMsiExec
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		}
+
 		##*===============================================
 		##* POST-INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Post-Installation'
-		
+
 		## <Perform Post-Installation tasks here>
-		
-		## Display a message at the end of the install
+		## Uninstall Java Update checker
+		$exitCode = Execute-MSI -Action 'Uninstall' -Path '{4A03706F-666A-4037-7777-5F2748764D10}' -PassThru
+		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		Remove-File -Path "$envCommonStartMenuPrograms\Java\Check For Updates.lnk" -ContinueOnError $true
+
 		If (-not $useDefaultMsi) {}
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
@@ -151,45 +195,56 @@ Try {
 		##* PRE-UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Pre-Uninstallation'
-		
-		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-		Show-InstallationWelcome
-		
+
+		## Show Welcome Message, close Java apps with a 60 second countdown before automatically closing
+		Show-InstallationWelcome -CloseApps 'eclipse,firefox,iexplore,netbeans,netbeans64,sqldeveloper' -CloseAppsCountdown 60
+
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
-		
+
 		## <Perform Pre-Uninstallation tasks here>
-		
-		
+
+
 		##*===============================================
 		##* UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Uninstallation'
-		
+
 		## Handle Zero-Config MSI Uninstallations
 		If ($useDefaultMsi) {
 			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Uninstall'; Path = $defaultMsiFile }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
 			Execute-MSI @ExecuteDefaultMSISplat
 		}
-		
+
 		# <Perform Uninstallation tasks here>
-		
-		Execute-MSI -Action Uninstall -Path '{64A3A4F4-B792-11D6-A78A-00B0D0180152}'
-		
+		If ($x86 -and $x64) {
+			## Uninstall 32-bit and 64-bit versions if specified
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		} ElseIf ($x64) {
+			## Only uninstall a 64-bit version if specified
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		} Else {
+			## Only uninstall a 32-bit version if specified (or if no version is specified)
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		}
+
 		##*===============================================
 		##* POST-UNINSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Post-Uninstallation'
-		
+
 		## <Perform Post-Uninstallation tasks here>
-		
-		
+
+
 	}
-	
+
 	##*===============================================
 	##* END SCRIPT BODY
 	##*===============================================
-	
+
 	## Call the Exit-Script function to perform final cleanup operations
 	Exit-Script -ExitCode $mainExitCode
 }
@@ -200,3 +255,118 @@ Catch {
 	Show-DialogBox -Text $mainErrorMessage -Icon 'Stop'
 	Exit-Script -ExitCode $mainExitCode
 }
+
+# SIG # Begin signature block
+# MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC9mGhXxCOZZsdz
+# LquJzuJsVtv4k4rJu8a+c4liw6OjI6CCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
+# TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
+# YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
+# U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
+# MAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMT
+# H0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzIwggEiMA0GCSqGSIb3DQEB
+# AQUAA4IBDwAwggEKAoIBAQCU72X4tVefoFMNNAbrCR+3Rxhqy/Bb5P8npTTR94ka
+# v56xzRJBbmbUgaCFi2RaRi+ZoI13seK8XN0i12pn0LvoynTei08NsFLlkFvrRw7x
+# 55+cC5BlPheWMEVybTmhFzbKuaCMG08IGfaBMa1hFqRi5rRAnsP8+5X2+7UulYGY
+# 4O/F69gCWXh396rjUmtQkSnF/PfNk2XSYGEi8gb7Mt0WUfoO/Yow8BcJp7vzBK6r
+# kOds33qp9O/EYidfb5ltOHSqEYva38cUTOmFsuzCfUomj+dWuqbgz5JTgHT0A+xo
+# smC8hCAAgxuh7rR0BcEpjmLQR7H68FPMGPkuO/lwfrQlAgMBAAGjgeUwgeIwDgYD
+# VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFEbYPv/c
+# 477/g+b0hZuw3WrWFKnBMEcGA1UdIARAMD4wPAYEVR0gADA0MDIGCCsGAQUFBwIB
+# FiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzAzBgNVHR8E
+# LDAqMCigJqAkhiJodHRwOi8vY3JsLmdsb2JhbHNpZ24ubmV0L3Jvb3QuY3JsMB8G
+# A1UdIwQYMBaAFGB7ZhpFDZfKiVAvfQTNNKj//P1LMA0GCSqGSIb3DQEBBQUAA4IB
+# AQBOXlaQHka02Ukx87sXOSgbwhbd/UHcCQUEm2+yoprWmS5AmQBVteo/pSB204Y0
+# 1BfMVTrHgu7vqLq82AafFVDfzRZ7UjoC1xka/a/weFzgS8UY3zokHtqsuKlYBAIH
+# MNuwEl7+Mb7wBEj08HD4Ol5Wg889+w289MXtl5251NulJ4TjOJuLpzWGRCCkO22k
+# aguhg/0o69rvKPbMiF37CjsAq+Ah6+IvNWwPjjRFl+ui95kzNX7Lmoq7RU3nP5/C
+# 2Yr6ZbJux35l/+iS4SwxovewJzZIjyZvO+5Ndh95w+V/ljW8LQ7MAbCOf/9RgICn
+# ktSzREZkjIdPFmMHMUtjsN/zMIIEnzCCA4egAwIBAgISESHWmadklz7x+EJ+6RnM
+# U0EUMA0GCSqGSIb3DQEBBQUAMFIxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i
+# YWxTaWduIG52LXNhMSgwJgYDVQQDEx9HbG9iYWxTaWduIFRpbWVzdGFtcGluZyBD
+# QSAtIEcyMB4XDTE2MDUyNDAwMDAwMFoXDTI3MDYyNDAwMDAwMFowYDELMAkGA1UE
+# BhMCU0cxHzAdBgNVBAoTFkdNTyBHbG9iYWxTaWduIFB0ZSBMdGQxMDAuBgNVBAMT
+# J0dsb2JhbFNpZ24gVFNBIGZvciBNUyBBdXRoZW50aWNvZGUgLSBHMjCCASIwDQYJ
+# KoZIhvcNAQEBBQADggEPADCCAQoCggEBALAXrqLTtgQwVh5YD7HtVaTWVMvY9nM6
+# 7F1eqyX9NqX6hMNhQMVGtVlSO0KiLl8TYhCpW+Zz1pIlsX0j4wazhzoOQ/DXAIlT
+# ohExUihuXUByPPIJd6dJkpfUbJCgdqf9uNyznfIHYCxPWJgAa9MVVOD63f+ALF8Y
+# ppj/1KvsoUVZsi5vYl3g2Rmsi1ecqCYr2RelENJHCBpwLDOLf2iAKrWhXWvdjQIC
+# KQOqfDe7uylOPVOTs6b6j9JYkxVMuS2rgKOjJfuv9whksHpED1wQ119hN6pOa9PS
+# UyWdgnP6LPlysKkZOSpQ+qnQPDrK6Fvv9V9R9PkK2Zc13mqF5iMEQq8CAwEAAaOC
+# AV8wggFbMA4GA1UdDwEB/wQEAwIHgDBMBgNVHSAERTBDMEEGCSsGAQQBoDIBHjA0
+# MDIGCCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0
+# b3J5LzAJBgNVHRMEAjAAMBYGA1UdJQEB/wQMMAoGCCsGAQUFBwMIMEIGA1UdHwQ7
+# MDkwN6A1oDOGMWh0dHA6Ly9jcmwuZ2xvYmFsc2lnbi5jb20vZ3MvZ3N0aW1lc3Rh
+# bXBpbmdnMi5jcmwwVAYIKwYBBQUHAQEESDBGMEQGCCsGAQUFBzAChjhodHRwOi8v
+# c2VjdXJlLmdsb2JhbHNpZ24uY29tL2NhY2VydC9nc3RpbWVzdGFtcGluZ2cyLmNy
+# dDAdBgNVHQ4EFgQU1KKESjhaGH+6TzBQvZ3VeofWCfcwHwYDVR0jBBgwFoAURtg+
+# /9zjvv+D5vSFm7DdatYUqcEwDQYJKoZIhvcNAQEFBQADggEBAI+pGpFtBKY3IA6D
+# lt4j02tuH27dZD1oISK1+Ec2aY7hpUXHJKIitykJzFRarsa8zWOOsz1QSOW0zK7N
+# ko2eKIsTShGqvaPv07I2/LShcr9tl2N5jES8cC9+87zdglOrGvbr+hyXvLY3nKQc
+# MLyrvC1HNt+SIAPoccZY9nUFmjTwC1lagkQ0qoDkL4T2R12WybbKyp23prrkUNPU
+# N7i6IA7Q05IqW8RZu6Ft2zzORJ3BOCqt4429zQl3GhC+ZwoCNmSIubMbJu7nnmDE
+# Rqi8YTNsz065nLlq8J83/rU9T5rTTf/eII5Ol6b9nwm8TcoYdsmwTYVQ8oDSHQb1
+# WAQHsRgwggbIMIIFsKADAgECAhN/AAAAIhO6jvua86/0AAEAAAAiMA0GCSqGSIb3
+# DQEBCwUAMGIxEzARBgoJkiaJk/IsZAEZFgNlZHUxGTAXBgoJkiaJk/IsZAEZFglt
+# c3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZFgV3aW5hZDEZMBcGA1UEAxMQd2luYWQt
+# Vk1XQ0EwMS1DQTAeFw0xNjA1MjcyMTI0MDJaFw0xODA1MjcyMTI0MDJaMIG/MQsw
+# CQYDVQQGEwJVUzERMA8GA1UECBMIQ29sb3JhZG8xDzANBgNVBAcTBkRlbnZlcjEw
+# MC4GA1UEChMnTWV0cm9wb2xpdGFuIFN0YXRlIFVuaXZlcnNpdHkgb2YgRGVudmVy
+# MSgwJgYDVQQLEx9JbmZvcm1hdGlvbiBUZWNobm9sb2d5IFNlcnZpY2VzMTAwLgYD
+# VQQDEydNZXRyb3BvbGl0YW4gU3RhdGUgVW5pdmVyc2l0eSBvZiBEZW52ZXIwggEi
+# MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCxCPUOmGXq89WCOBso0z5QIApw
+# EosnzQeoI9zP+n8wEb7BEA//+UTmjIZHe3jP0dF6C7EFhx2FcZxs8XQgSH5bnwor
+# rkLMa1FzcP2GlcNE5F+ms1zk5Bp2x2nsMOcx+12h9A6eU+JR3nXfWFwkNfvOAKrj
+# 1mo4BO5TEvx4DtrVBYFli+0JGnALa1Hd7A68nYtG743FPbioQn8EQSnDr+Jjtd8l
+# vujd9I5IQPptiU3inmcoaG+UFz8HKu7QS/mOLpoz/kjbSShxdNF0mcFmowg8WYMu
+# f8f1trOtsmWJ3lpyroKek8Ie9oOnKw3And2dOgqWxVXnfLEhW8b6PElvZc73AgMB
+# AAGjggMXMIIDEzAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0lBAwwCgYIKwYBBQUHAwEw
+# GwYJKwYBBAGCNxUKBA4wDDAKBggrBgEFBQcDAzAdBgNVHQ4EFgQUxu8skV6twX8T
+# i5hj8XjbzTUYeqgwHwYDVR0jBBgwFoAUbmigb8ibDuAf063cjbVhC57XDzQwggEo
+# BgNVHR8EggEfMIIBGzCCARegggEToIIBD4aBxWxkYXA6Ly8vQ049d2luYWQtVk1X
+# Q0EwMS1DQSgxKSxDTj1WTVdDQTAxLENOPUNEUCxDTj1QdWJsaWMlMjBLZXklMjBT
+# ZXJ2aWNlcyxDTj1TZXJ2aWNlcyxDTj1Db25maWd1cmF0aW9uLERDPXdpbmFkLERD
+# PW1zdWRlbnZlcixEQz1lZHU/Y2VydGlmaWNhdGVSZXZvY2F0aW9uTGlzdD9iYXNl
+# P29iamVjdENsYXNzPWNSTERpc3RyaWJ1dGlvblBvaW50hkVodHRwOi8vVk1XQ0Ew
+# MS53aW5hZC5tc3VkZW52ZXIuZWR1L0NlcnRFbnJvbGwvd2luYWQtVk1XQ0EwMS1D
+# QSgxKS5jcmwwggE+BggrBgEFBQcBAQSCATAwggEsMIG6BggrBgEFBQcwAoaBrWxk
+# YXA6Ly8vQ049d2luYWQtVk1XQ0EwMS1DQSxDTj1BSUEsQ049UHVibGljJTIwS2V5
+# JTIwU2VydmljZXMsQ049U2VydmljZXMsQ049Q29uZmlndXJhdGlvbixEQz13aW5h
+# ZCxEQz1tc3VkZW52ZXIsREM9ZWR1P2NBQ2VydGlmaWNhdGU/YmFzZT9vYmplY3RD
+# bGFzcz1jZXJ0aWZpY2F0aW9uQXV0aG9yaXR5MG0GCCsGAQUFBzAChmFodHRwOi8v
+# Vk1XQ0EwMS53aW5hZC5tc3VkZW52ZXIuZWR1L0NlcnRFbnJvbGwvVk1XQ0EwMS53
+# aW5hZC5tc3VkZW52ZXIuZWR1X3dpbmFkLVZNV0NBMDEtQ0EoMSkuY3J0MCEGCSsG
+# AQQBgjcUAgQUHhIAVwBlAGIAUwBlAHIAdgBlAHIwDQYJKoZIhvcNAQELBQADggEB
+# AIpoMvUtE1iFHSbi7X/M9a+JBPpiAQZzEbq70is1mzdosSVTMN7QoWk4WzHCJBpX
+# Oh7cvBrTLf0m4EqJ7OwPY43ZW7MycOjgtk393CaCzr9BiEDjWzJf8r5bDDCodEFm
+# dodj3/el8nV4HapjiGnJKrhg0b3xRjPP4cvjtBltbqO7tngkpDu+m63X68aC3wrt
+# XwJulfsGeTbd0v4hkji9GCTpLT92mkJyJE04SA/thv4F7yNx1W5XCEWswZeGLiR5
+# 9C5AlUm1WrhjAaoyxabDJWfljV//qk+TeoC5CNQ7ZkqdxFBYPc5d2UdkmmiK76D+
+# qaobXtlVJ9wRYfFoOaUb5dQxggSyMIIErgIBATB5MGIxEzARBgoJkiaJk/IsZAEZ
+# FgNlZHUxGTAXBgoJkiaJk/IsZAEZFgltc3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZ
+# FgV3aW5hZDEZMBcGA1UEAxMQd2luYWQtVk1XQ0EwMS1DQQITfwAAACITuo77mvOv
+# 9AABAAAAIjANBglghkgBZQMEAgEFAKBmMBgGCisGAQQBgjcCAQwxCjAIoAKAAKEC
+# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEINwp
+# 0km0S0J29jXALKLE9kygfjNfuuP9WNaGkJBPAJ1wMA0GCSqGSIb3DQEBAQUABIIB
+# ACgIA8Od5lfQf1ynoGePx1qOokvTLlGgmfXKWhYOnln1EX5LIAWFO+VQgHpgaeDj
+# HNiFQ/VF1r/8/m4yghE51ww6E9Y94bw+g2zs7196zMnFIhyghJ9L9LG2bMjkGnFV
+# 94+SN5zn7wsBijIrC3RGGeS5iF5bAv6tHXLAf6lhLCVFCUZHUIo5i4Ka4iJl93/H
+# 0sW2Lpj05NV49M67z9JsZVMbCUSZpDMwCAiMtOhgsBeyKFVakGXehDvxCB6j3cYu
+# q16W+1lQl4crBY7kifJT25hF3a4U2ixFu8ZshQwehy5yLuKMbf39unQVZP7kOyFZ
+# LNXJiPR5Nz1JMK6L+7Jc8XWhggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
+# aDBSMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYG
+# A1UEAxMfR2xvYmFsU2lnbiBUaW1lc3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x
+# +EJ+6RnMU0EUMAkGBSsOAwIaBQCggf0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEH
+# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMTIyMjE1OTM1WjAjBgkqhkiG9w0BCQQxFgQU
+# 8xPd8Ntt87IJNDLso9G3Cbq8lF4wgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
+# BBRjuC+rYfWDkJaVBQsAJJxQKTPseTBsMFakVDBSMQswCQYDVQQGEwJCRTEZMBcG
+# A1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYGA1UEAxMfR2xvYmFsU2lnbiBUaW1l
+# c3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x+EJ+6RnMU0EUMA0GCSqGSIb3DQEB
+# AQUABIIBAJjYtHULI1bs75Fk69uP3SmAPl3qmg9sBoBsWkyLVQyVTrtcPz8xSjG2
+# MZqz/kd0YsJhal1JPgATEMUwvYwR9JC7OzgL443iuQuQsKEmm6yNlKtFMpnR78EL
+# DsUrjtVBbtqlpLXkSaQY7ha0vzRuMHTXID7Era9Y8xLPrWOuG9uRFTPcEN7tYa9J
+# X35TDlqCrQBXXK8KlhO8eSn88Nuq32mK14vN4p/d7lp675UiMzVSh/DDXHCkSeGT
+# RrKpR6i6DrAr0ruTt+XRFpgH8xuPQJ122ymdFtWMn+jEmqDb3ANoftwdvm/Xau0f
+# S7u9gaX/Erfwf9axA/DbeRIwPnSuopg=
+# SIG # End signature block
