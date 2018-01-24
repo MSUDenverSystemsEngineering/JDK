@@ -123,6 +123,7 @@ Try {
 
 		## <Perform Pre-Installation tasks here>
 		If ($x86 -and $x64) {
+			Write-Log -Message "Searching for any previous JDK and JRE versions to remove prior to installation..." -Severity 1 -Source $deployAppScriptFriendlyName
 			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
@@ -131,21 +132,23 @@ Try {
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -PassThru
 		} ElseIf ($x64) {
-			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx')  -PassThru
+			Write-Log -Message "Searching for previous 64-bit JDK and JRE versions to remove prior to installation..." -Severity 1 -Source $deployAppScriptFriendlyName
+			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $false, 'Exact'),('InstallLocation','${envProgramFilesX86}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $false, 'Exact'),('InstallLocation','${envProgramFilesX86}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $false, 'Exact'),('InstallLocation','${envProgramFilesX86}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $false, 'Exact'),('InstallLocation','${envProgramFilesX86}\Java','RegEx') -PassThru
 		} Else {
-			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			Write-Log -Message "Searching for previous 32-bit JDK and JRE versions to remove prior to installation..." -Severity 1 -Source $deployAppScriptFriendlyName
+			$exitCode = Remove-MSIApplications -Name "Java 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $true, 'Exact'),('InstallLocation','${envProgramFiles}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $true, 'Exact'),('InstallLocation','${envProgramFiles}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $true, 'Exact'),('InstallLocation','${envProgramFiles}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 7 Update" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $true, 'Exact'),('InstallLocation','${envProgramFiles}\Java','RegEx') -PassThru
 		}
 
 		##*===============================================
@@ -223,11 +226,11 @@ Try {
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		} ElseIf ($x64) {
 			## Only uninstall a 64-bit version if specified
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication ('Is64BitApplication', $true, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $false, 'Exact'),('InstallLocation','${envProgramFilesX86}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		} Else {
 			## Only uninstall a 32-bit version if specified (or if no version is specified)
-			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication ('Is64BitApplication', $false, 'Exact'),('Publisher', 'Oracle', 'RegEx') -PassThru
+			$exitCode = Remove-MSIApplications -Name "Java SE Development Kit 8 Update 162" -FilterApplication (,('Publisher', 'Oracle', 'RegEx')) -ExcludeFromUninstall ('Is64BitApplication', $true, 'Exact'),('InstallLocation','${envProgramFiles}\Java','RegEx') -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
 
@@ -259,8 +262,8 @@ Catch {
 # SIG # Begin signature block
 # MIIU4wYJKoZIhvcNAQcCoIIU1DCCFNACAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCC9mGhXxCOZZsdz
-# LquJzuJsVtv4k4rJu8a+c4liw6OjI6CCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDgpM6AaGaZxZGK
+# ju/79lBECwyU3xL1vDaYlCg4MGAflKCCD4cwggQUMIIC/KADAgECAgsEAAAAAAEv
 # TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
 # YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
 # U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
@@ -347,26 +350,26 @@ Catch {
 # FgNlZHUxGTAXBgoJkiaJk/IsZAEZFgltc3VkZW52ZXIxFTATBgoJkiaJk/IsZAEZ
 # FgV3aW5hZDEZMBcGA1UEAxMQd2luYWQtVk1XQ0EwMS1DQQITfwAAACITuo77mvOv
 # 9AABAAAAIjANBglghkgBZQMEAgEFAKBmMBgGCisGAQQBgjcCAQwxCjAIoAKAAKEC
-# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEINwp
-# 0km0S0J29jXALKLE9kygfjNfuuP9WNaGkJBPAJ1wMA0GCSqGSIb3DQEBAQUABIIB
-# ACgIA8Od5lfQf1ynoGePx1qOokvTLlGgmfXKWhYOnln1EX5LIAWFO+VQgHpgaeDj
-# HNiFQ/VF1r/8/m4yghE51ww6E9Y94bw+g2zs7196zMnFIhyghJ9L9LG2bMjkGnFV
-# 94+SN5zn7wsBijIrC3RGGeS5iF5bAv6tHXLAf6lhLCVFCUZHUIo5i4Ka4iJl93/H
-# 0sW2Lpj05NV49M67z9JsZVMbCUSZpDMwCAiMtOhgsBeyKFVakGXehDvxCB6j3cYu
-# q16W+1lQl4crBY7kifJT25hF3a4U2ixFu8ZshQwehy5yLuKMbf39unQVZP7kOyFZ
-# LNXJiPR5Nz1JMK6L+7Jc8XWhggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
+# gAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwLwYJKoZIhvcNAQkEMSIEIGlL
+# /h8Jnkk4huZgU3k5OBw7XLiNW6skb0yE8BZt5T//MA0GCSqGSIb3DQEBAQUABIIB
+# AJHmq+Ue9IpleV3IZkrk/bVfQT1FlEoYEtRmyMMB9LmbbUeGIW+08HKp/YEU6zhg
+# fKdImvUrDFZhd/1H1nEBFd4BKajqrLoXJsSb65akd1VM3ydAnJasKueBvjDEgvHx
+# nY+E9rUjIUErjp/VF8M9dkEN6+dFpWmpXLGNy01MPkMlijBQx1FzkLu6KO60zG2R
+# FFSsArZTRp9O11zOM5VeLrRYyAybBNUgjWnWZxo3lFDOVeoyQ9ngjUfem/JGr4FC
+# oIke1ZU6ZqOtN2Tgx/dwkjw0mT+dBsx44PfPvE/jd1GbQsIgzCLsnxnhLly5jjr4
+# tuHMlAp6vTHa65MBal7Eb5ehggKiMIICngYJKoZIhvcNAQkGMYICjzCCAosCAQEw
 # aDBSMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYG
 # A1UEAxMfR2xvYmFsU2lnbiBUaW1lc3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x
 # +EJ+6RnMU0EUMAkGBSsOAwIaBQCggf0wGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEH
-# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMTI0MTg1NTA3WjAjBgkqhkiG9w0BCQQxFgQU
-# 8xPd8Ntt87IJNDLso9G3Cbq8lF4wgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
+# ATAcBgkqhkiG9w0BCQUxDxcNMTgwMTI0MjAyNjQwWjAjBgkqhkiG9w0BCQQxFgQU
+# pP6C9vtdtkXPBKvclvsBAXoMld0wgZ0GCyqGSIb3DQEJEAIMMYGNMIGKMIGHMIGE
 # BBRjuC+rYfWDkJaVBQsAJJxQKTPseTBsMFakVDBSMQswCQYDVQQGEwJCRTEZMBcG
 # A1UEChMQR2xvYmFsU2lnbiBudi1zYTEoMCYGA1UEAxMfR2xvYmFsU2lnbiBUaW1l
 # c3RhbXBpbmcgQ0EgLSBHMgISESHWmadklz7x+EJ+6RnMU0EUMA0GCSqGSIb3DQEB
-# AQUABIIBAKAizsJe5JZeayeVGLKdPwfm/RqjsHC4RDInG8aIMisNkVz2RAM2JQJj
-# C4e6CDCqMBjsV1qWyU7Os7YVOmcJHhlFWTsV70IAutiZIUeb2yl9xsFjuS+cH+Jk
-# pswomQoM2TsBvSUA0dmX42EqnCrM96qyrc5UYx79d9QqqtUKX1T8HbKabZkGDfHy
-# yQLATRlo4r424t9uJdvGNN4MyAC4pYuUS48ZeQKblj9a0jo6y16Xq5WOPkdcJO0V
-# eBpNHFDzcTr5aCWF70uoaMtYJR50jE448jyW7eId4IcHYulpuX0T1ywzhqWAdtw1
-# Rkd2ASgUrXfZVE1njRJ7yZ0BafR5I+c=
+# AQUABIIBAI/Bh5oaX1gMGLpEL8rwwjJTTMebKpJNjeZpSWRnDUeLIlTdNHRjnOLE
+# pb1PIV7baW2CRRxrkp5FgSfqeGpZP5NljOKML+g2g78pKTfbcb3PD+V3LeFJG/OZ
+# y+nGAEw8tH4dbZPLJvWj8V1TbG8Zr8TJ1jzvOHBU2FJKOoBJu4r2IAMWvZvc88cR
+# 4RYfSCJ6FuiwCVhE307m1EMP4Xt588fHVV7fTjgL1SlkYy7BEWOITzGwFc+D+zzT
+# JF/0vp4sGRNVzUFJHIy5wWPQx4Zp5CEEWMzwp+dsTGRF3OpTdfuSLytHPGlWIqly
+# 8TRdzrHlaCcCK9e2/p8DTKGKYLasxQw=
 # SIG # End signature block
